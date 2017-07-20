@@ -19,6 +19,7 @@
 #include <sys/file.h>
 #include <errno.h>
 #include <signal.h>
+#include "MessagePacket.h"
 
 #define ECHOMAX (255)				/* エコー文字列の最大長 */
 
