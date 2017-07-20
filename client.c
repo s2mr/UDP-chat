@@ -1,10 +1,10 @@
 /* 
- * ■情報ネットワーク実践論（橋本担当分）  サンプルソースコード (5)
+ * ■情報ネットワーク実践論（橋本担当分）  サンプルソースコード (7)
  *
- * UDPエコークライアント：タイムアウト処理対応版
+ * UDPエコークライアント：Select関数を使った多重化処理対応版
  *
- *	コンパイル：gcc -Wall -o UDPEchoClient-Timeout UDPEchoClient-Timeout.c
- *		使い方：UDPEchoClient-Timeout <Server IP> <Echo Word> [<Echo Port>]
+ *	コンパイル：gcc -Wall -o UDPEchoClient-Select UDPEchoClient-Select.c
+ *		使い方：UDPEchoClient-Select <Server IP> [<Echo Port>]
  *
  *		※利用するポート番号は 10000 + 学籍番号の下4桁
  *			［例］学籍番号が 0312013180 の場合： 10000 + 3180 = 13180
@@ -15,171 +15,182 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
-#include <signal.h>
 #include "MessagePacket.h"
 
-#define ECHOMAX			(255)	/* エコー文字列の最大長 */
-#define TIMEOUT_SECS	(2)		/* タイムアウト設定値(秒数) */
-#define MAXTRIES		(5)		/* 最大送信回数 */
+#define ECHOMAX (255)			/* エコー文字列の最大長 */
+#define TIMEOUT (2)				/* select関数のタイムアウト値 [秒] */
 
-int tries = 0;							/* 送信回数カウンタ */
-void AlarmSignalHandler(int signo);		/* SIGALRM 発生時のシグナルハンドラ */
+/* キーボードからの文字列入力・エコーサーバへの送信処理関数 */
+int SendEchoMessage(int sock, struct sockaddr_in *pServAddr);
+
+/* ソケットからのメッセージ受信・表示処理関数 */
+int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr);
 
 int main(int argc, char *argv[])
 {
   char *servIP;					/* エコーサーバのIPアドレス */
-  char *echoString;				/* エコーサーバへ送信する文字列 */
-  int echoStringLen;			/* エコーサーバへ送信する文字列の長さ */
   unsigned short servPort;		/* エコーサーバのポート番号 */
-
+  
   int sock;						/* ソケットディスクリプタ */
-  struct sigaction sigAction;	/* シグナルハンドラ設定用構造体 */
   struct sockaddr_in servAddr;	/* エコーサーバ用アドレス構造体 */
 
-  int sendMsgLen;				/* 送信メッセージの長さ */
-  struct sockaddr_in fromAddr;	/* メッセージ送信元用アドレス構造体 */
-  unsigned int fromAddrLen;		/* メッセージ送信元用アドレス構造体の長さ */
-  char msgBuffer[ECHOMAX+1];	/* メッセージ送受信バッファ */
-  int recvMsgLen;				/* 受信メッセージの長さ */
+  int maxDescriptor;			/* select関数が扱うディスクリプタの最大値 */
+  fd_set fdSet;					/* select関数が扱うディスクリプタの集合 */
+  struct timeval tout;			/* select関数におけるタイムアウト設定用構造体 */
 
   /* 引数の数を確認する．*/
-  if ((argc < 3) || (argc > 4)) {
-    fprintf(stderr,"Usage: %s <Server IP> <Echo Word> [<Echo Port>]\n", argv[0]);
+  if ((argc < 2) || (argc > 3)) {
+    fprintf(stderr,"Usage: %s <Server IP> [<Echo Port>]\n", argv[0]);
     exit(1);
   }
+  
   /* 第1引数からエコーサーバのIPアドレスを取得する．*/
   servIP = argv[1];
 
-  /* 第2引数からエコーサーバへ送信する文字列を取得する．*/
-  echoString = argv[2];
-
-  /* エコーサーバへ送信する文字列の長さを取得する．*/
-  echoStringLen = strlen(echoString);
-  if (echoStringLen > ECHOMAX) {
-    fprintf(stderr, "Echo word too long\n");
-    exit(1);
-  }
-  /* 第3引数からエコーサーバのポート番号を取得する．*/
-  if (argc == 4) {
-    servPort = atoi(argv[3]);
+  /* 第2引数からエコーサーバのポート番号を取得する．*/
+  if (argc == 3) {
+    /* 引数が在ればエコーサーバのポート番号として使用する．*/
+    servPort = atoi(argv[2]);
   }
   else {
+    /* 引数が無ければエコーサーバのポート番号として 7番 を使用する．*/
+    /* (※ 7番 はエコーサービスの well-known ポート番号）*/
     servPort = 7;
   }
 
   /* メッセージの送受信に使うソケットを作成する．*/
   sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (sock < 0) {
-    fprintf(stderr, "socket() failed\n");
+    fprintf(stderr, "socket() failed");
     exit(1);
   }
-
-  /* シグナルハンドラを設定する．*/
-  sigAction.sa_handler = AlarmSignalHandler;
-
-  /* ハンドラ内でブロックするシグナルを設定する(全てのシグナルをブロックする)．*/
-  if (sigfillset(&sigAction.sa_mask) < 0) {
-    fprintf(stderr, "sigfillset() failed\n");
-    exit(1);
-  }
-
-  /* シグナルハンドラに関するオプション指定は無し．*/
-  sigAction.sa_flags = 0;
-
-  /* シグナルハンドラ設定用構造体を使って，シグナルハンドラを登録する．*/
-  if (sigaction(SIGALRM, &sigAction, 0) < 0) {
-    fprintf(stderr, "sigaction() failed\n");
-    exit(1);
-  }
-
+  
   /* エコーサーバ用アドレス構造体へ必要な値を格納する．*/
   memset(&servAddr, 0, sizeof(servAddr));			/* 構造体をゼロで初期化 */
   servAddr.sin_family		= AF_INET;				/* インターネットアドレスファミリ */
   servAddr.sin_addr.s_addr	= inet_addr(servIP);	/* サーバのIPアドレス */
   servAddr.sin_port			= htons(servPort);		/* サーバのポート番号 */
 
-  /* エコーサーバへメッセージを送信する．*/
-  sendMsgLen = sendto(sock, echoString, echoStringLen, 0,
-    (struct sockaddr*)&servAddr, sizeof(servAddr));
+  /* select関数で処理するディスクリプタの最大値として，ソケットの値を設定する．*/
+  maxDescriptor = sock;
 
-  /* 送信されるべきメッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
-  if (echoStringLen != sendMsgLen) {
-    fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
-    exit(1);
+  /* 文字列入力・メッセージ送信，およびメッセージ受信・表示処理ループ */
+  for (;;) {
+
+    /* ディスクリプタの集合を初期化して，キーボートとソケットを設定する．*/
+    // 関数形式のマクロ
+    FD_ZERO(&fdSet);				/* ゼロクリア */
+    // STDIN_FILENO -> 0
+    // FD_SET -> 該当するビットを１にする
+    FD_SET(STDIN_FILENO, &fdSet);	/* キーボード(標準入力)用ディスクリプタを設定 */
+    FD_SET(sock, &fdSet);			/* ソケットディスクリプタを設定 */
+
+    /* タイムアウト値を設定する．*/
+    tout.tv_sec  = TIMEOUT; /* 秒 */
+    tout.tv_usec = 0;       /* マイクロ秒 */
+
+    /* 各ディスクリプタに対する入力があるまでブロックする．*/
+    // 3, 4番目ー＞標準出力、TCPの帯域外データ受信があるかどうかをチェックする
+    if (select(maxDescriptor + 1, &fdSet, NULL, NULL, &tout) == 0) {
+      /* タイムアウト */
+      printf(".\n");
+      continue;
+    }
+
+    /* キーボードからの入力を確認する．*/
+    if (FD_ISSET(STDIN_FILENO, &fdSet)) {
+     /* キーボードからの入力があるので，文字列を読み込み，エコーサーバへ送信する．*/
+      if (SendEchoMessage(sock, &servAddr) < 0) {
+        break;
+      }
+    }
+    
+    /* ソケットからの入力を確認する．*/
+    if (FD_ISSET(sock, &fdSet)) {
+      /* ソケットからの入力があるので，メッセージを受信し，表示する．*/
+      if (ReceiveEchoMessage(sock, &servAddr) < 0) {
+        break;
+      }
+    }
   }
 
-  /* タイムアウト時間を設定する．*/
-  alarm(TIMEOUT_SECS);
+  /* ソケットを閉じ，プログラムを終了する．*/
+  close(sock);
+  exit(0);
+}
+
+/*
+ * キーボードからの文字列入力・エコーサーバへのメッセージ送信処理関数
+ */
+int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
+{
+  char echoString[ECHOMAX + 1];	/* エコーサーバへ送信する文字列 */
+  int echoStringLen;			/* エコーサーバへ送信する文字列の長さ */
+  int sendMsgLen;				/* 送信メッセージの長さ */
+
+  /* キーボードからの入力を読み込む．(※改行コードも含まれる．) */
+  if (fgets(echoString, ECHOMAX + 1, stdin) == NULL) {
+    /*「Control + D」が入力された．またはエラー発生．*/
+    return -1;
+  }
+
+  /* 入力文字列の長さを確認する．*/
+  echoStringLen = strlen(echoString);
+  if (echoStringLen < 1) {
+    fprintf(stderr,"No input string.\n");
+    return -1;
+  }
+
+  /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
+  sendMsgLen = sendto(sock, echoString, echoStringLen, 0,
+    (struct sockaddr*)pServAddr, sizeof(*pServAddr));
+
+  /* 送信されるべき文字列の長さと送信されたメッセージの長さが等しいことを確認する．*/
+  if (echoStringLen != sendMsgLen) {
+    fprintf(stderr, "sendto() sent a different number of bytes than expected");
+    return -1;
+  }
+  return 0;
+}
+
+/*
+ * ソケットからのメッセージ受信・表示処理関数(パケットが到着した後に呼ばれる)
+ */
+int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
+{
+  struct sockaddr_in fromAddr;	/* メッセージ送信元用アドレス構造体 */
+  unsigned int fromAddrLen;		/* メッセージ送信元用アドレス構造体の長さ */
+  char msgBuffer[ECHOMAX + 1];	/* メッセージ送受信バッファ */
+  int recvMsgLen;				/* 受信メッセージの長さ */
+
+  /* エコーメッセージ送信元用アドレス構造体の長さを初期化する．*/
+  fromAddrLen = sizeof(fromAddr);
 
   /* エコーメッセージを受信する．*/
-  fromAddrLen = sizeof(fromAddr);
   recvMsgLen = recvfrom(sock, msgBuffer, ECHOMAX, 0,
-    (struct sockaddr *) &fromAddr, &fromAddrLen); //alarm()でタイム時間を設定をしているとrecvfromは戻ってくる
-
-  /* タイムアウト時の送受信処理ループ．*/
-  while (recvMsgLen < 0) {
-
-    /* SIGALRM が発生したかどうかを確認する．*/
-    if (errno != EINTR) { //errnoはシステムで定義された変数
-      //Error Interacted
-      //最後に発生したシステム関係のエラーが入っている
-      fprintf(stderr, "recvfrom() failed\n");
-      exit(1);
-    }
-
-    /* タイムアウト回数を表示する．*/
-    printf("timed out : %d\n", tries);
-
-    /* 送信回数カウンタと最大送信回数を比較する．*/
-    if (tries >= MAXTRIES) {
-      fprintf(stderr, "No Response\n");
-      exit(1);
-    }
-
-    /* エコーサーバへメッセージを再送信する．*/
-    sendMsgLen = sendto(sock, echoString, echoStringLen, 0,
-      (struct sockaddr*)&servAddr, sizeof(servAddr));
-    if (echoStringLen != sendMsgLen) {
-      fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
-      exit(1);
-    }
-
-    /* タイムアウト時間を設定する．*/
-    alarm(TIMEOUT_SECS);
-
-    /* エコーメッセージを受信する．*/
-    fromAddrLen = sizeof(fromAddr);
-    recvMsgLen = recvfrom(sock, msgBuffer, ECHOMAX, 0,
-      (struct sockaddr *) &fromAddr, &fromAddrLen);
-  }
-
-  /* タイムアウト時間の設定をキャンセルする．*/
-  alarm(0);
-
-  /* 受信メッセージの長さが正しいことを確認する．*/
-  if (recvMsgLen != echoStringLen) {
-    fprintf(stderr, "recvfrom() failed\n");
-    exit(1);
+    (struct sockaddr*)&fromAddr, &fromAddrLen);
+  if (recvMsgLen < 0) {
+    fprintf(stderr, "recvfrom() failed");
+    return -1;
   }
 
   /* エコーメッセージの送信元がエコーサーバであることを確認する．*/
-  if (fromAddr.sin_addr.s_addr != servAddr.sin_addr.s_addr) {
-    fprintf(stderr,"Error: received a packet from unknown source\n");
-    exit(1);
+  if (fromAddr.sin_addr.s_addr != pServAddr->sin_addr.s_addr) {
+    fprintf(stderr,"Error: received a packet from unknown source.\n");
+    return -1;
   }
 
   /* 受信したエコーメッセージをNULL文字で終端し，表示する．*/
   msgBuffer[recvMsgLen] = '\0';
   printf("Received: %s\n", msgBuffer);
 
-  /* ソケットを閉じてプログラムを終了する．*/
-  close(sock);
-  exit(0);
+  return 0;
 }
 
-/* SIGALRM 発生時のシグナルハンドラ */
-void AlarmSignalHandler(int signo)
-{
-  tries += 1;
+int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
+  return 0;
+}
+
+int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
+  return 0;
 }
