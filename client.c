@@ -73,6 +73,9 @@ int main(int argc, char *argv[])
 
   /* select関数で処理するディスクリプタの最大値として，ソケットの値を設定する．*/
   maxDescriptor = sock;
+  
+  /* サーバに参加したいというリクエストを送信する */
+  //Packetize(MSGID_JOIN_REQUEST, "", 0, )
 
   /* 文字列入力・メッセージ送信，およびメッセージ受信・表示処理ループ */
   for (;;) {
@@ -142,11 +145,19 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
   }
 
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
-  sendMsgLen = sendto(sock, echoString, echoStringLen, 0,
+  char pktBuf[255];
+  int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, 255);
+  
+  printf("pktMsgLen : %d\n", pktMsgLen);
+  printf("echoString : %s\n", echoString);
+  printf("pktBuf : %s\n", pktBuf);
+  
+  sendMsgLen = sendto(sock, pktBuf, pktMsgLen, 0,
     (struct sockaddr*)pServAddr, sizeof(*pServAddr));
+    
 
   /* 送信されるべき文字列の長さと送信されたメッセージの長さが等しいことを確認する．*/
-  if (echoStringLen != sendMsgLen) {
+  if (pktMsgLen != sendMsgLen) {
     fprintf(stderr, "sendto() sent a different number of bytes than expected");
     return -1;
   }
@@ -188,7 +199,26 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
-  return 0;
+  //memset(pktBuf, '\0', pktBufSize);
+  
+  printf("&msgID: %p\n", &msgID);
+  printf("msgID: %d\n", msgID);
+  
+  char *s1 = "ho";
+  char *s2 = "ge";
+  
+  // memcpy(&pktBuf[0], s1, 2);
+  // memcpy(&pktBuf[2], s1, 2);
+  
+  // msgID = 123;
+  memcpy(&pktBuf[0], &msgID, sizeof(short));
+  memcpy(&pktBuf[2], &msgLen, sizeof(short));
+  memcpy(&pktBuf[4], msgBuf, msgLen);
+  
+  // memcpy();
+  
+  // memcpy(pktBuf, msgBuf, msgLen);  
+  return 2 + 2 + msgLen;
 }
 
 int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
