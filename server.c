@@ -118,7 +118,9 @@ void IOSignalHandler(int signo)
 {
   struct sockaddr_in clntAddr;	/* クライアント用アドレス構造体 */
   unsigned int clntAddrLen;		/* クライアント用アドレス構造体の長さ */
-  char msgBuffer[ECHOMAX];		/* メッセージ送受信バッファ */
+  char pktBuffer[ECHOMAX];		/* 受信パケットバッファ */
+  char recvMsgBuffer[ECHOMAX];      /* 受信メッセージバッファ */
+  int pktLen;				/* 受信パケットの長さ */
   int recvMsgLen;				/* 受信メッセージの長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
 
@@ -130,7 +132,7 @@ void IOSignalHandler(int signo)
 
     /* クライアントからメッセージを受信する．(※この呼び出しはブロックしない) */
     // ■未実装■
-    recvMsgLen = recvfrom(sock, msgBuffer, ECHOMAX, 0, (struct sockaddr*)&clntAddr,
+    pktLen = recvfrom(sock, pktBuffer, ECHOMAX, 0, (struct sockaddr*)&clntAddr,
      &clntAddrLen);
 
     /* 受信メッセージの長さを確認する．*/
@@ -142,13 +144,22 @@ void IOSignalHandler(int signo)
         exit(1);
       }
     } else {
+      short msgID;
+      
+      int msgBufSize;
+      memcpy(&msgBufSize, &pktBuffer[2], sizeof(short));
+      
+      recvMsgLen = Depacketize(pktBuffer, pktLen, &msgID, recvMsgBuffer, msgBufSize);
+      printf("msgID: %d\n", msgID);
+      printf("recvStr: %s\n", recvMsgBuffer);
+      
       /* クライアントのIPアドレスを表示する．*/
       // ■未実装■
       printf("Handling client %s\n", inet_ntoa(clntAddr.sin_addr));
 
       /* 受信メッセージをそのままクライアントに送信する．*/
       // ■未実装■
-      sendMsgLen = sendto(sock, msgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr,
+      sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr,
        sizeof(clntAddr));
 
       /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
@@ -158,5 +169,16 @@ void IOSignalHandler(int signo)
         exit(1);
       }
     }
-  } while (recvMsgLen >= 0);
+  } while (pktLen >= 0);
+}
+
+int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
+  return 0;
+}
+
+int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
+  memcpy(msgID, &pktBuf[0], sizeof(short));
+  memcpy(msgBuf, &pktBuf[4], msgBufSize);
+  
+  return strlen(msgBuf);
 }
