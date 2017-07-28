@@ -136,7 +136,7 @@ void IOSignalHandler(int signo)
      &clntAddrLen);
 
     /* 受信メッセージの長さを確認する．*/
-    if (recvMsgLen < 0) {
+    if (pktLen < 0) {
       /* errono が EWOULDBLOCK である場合，受信データが無くなったことを示す．*/
       /* EWOULDBLOCK は，許容できる唯一のエラー．*/
       if (errno != EWOULDBLOCK) {
@@ -151,7 +151,9 @@ void IOSignalHandler(int signo)
       
       recvMsgLen = Depacketize(pktBuffer, pktLen, &msgID, recvMsgBuffer, msgBufSize);
       printf("msgID: %d\n", msgID);
+      printf("pktLen: %d\n", pktLen);
       printf("recvStr: %s\n", recvMsgBuffer);
+      printf("recvMsgLen: %d\n", recvMsgLen);
       
       /* クライアントのIPアドレスを表示する．*/
       // ■未実装■
