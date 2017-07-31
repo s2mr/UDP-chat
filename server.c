@@ -129,6 +129,9 @@ void IOSignalHandler(int signo)
     /* クライアント用アドレス構造体の長さを初期化する．*/
     //■未実装■
     clntAddrLen = sizeof(clntAddr);
+    
+    memset(recvMsgBuffer, '\0', ECHOMAX);
+    memset(pktBuffer, '\0', ECHOMAX);
 
     /* クライアントからメッセージを受信する．(※この呼び出しはブロックしない) */
     // ■未実装■
@@ -146,8 +149,9 @@ void IOSignalHandler(int signo)
     } else {
       short msgID;
       
-      int msgBufSize;
+      short msgBufSize;
       memcpy(&msgBufSize, &pktBuffer[2], sizeof(short));
+      printf("msgBufSize: %d\n", msgBufSize);
       
       recvMsgLen = Depacketize(pktBuffer, pktLen, &msgID, recvMsgBuffer, msgBufSize);
       printf("msgID: %d\n", msgID);

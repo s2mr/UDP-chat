@@ -26,6 +26,8 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr);
 /* ソケットからのメッセージ受信・表示処理関数 */
 int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr);
 
+int SendJoinRequest(int sock, struct sockaddr_in *pServAddr);
+
 int main(int argc, char *argv[])
 {
   char *servIP;					/* エコーサーバのIPアドレス */
@@ -75,7 +77,7 @@ int main(int argc, char *argv[])
   maxDescriptor = sock;
   
   /* サーバに参加したいというリクエストを送信する */
-  //Packetize(MSGID_JOIN_REQUEST, "", 0, )
+  //SendJoinRequest(sock, &servAddr);
 
   /* 文字列入力・メッセージ送信，およびメッセージ受信・表示処理ループ */
   for (;;) {
@@ -120,6 +122,20 @@ int main(int argc, char *argv[])
   /* ソケットを閉じ，プログラムを終了する．*/
   close(sock);
   exit(0);
+}
+
+int SendJoinRequest(int sock, struct sockaddr_in *pServAddr) {
+  char pktBuf[255];
+  int msgID = MSGID_JOIN_REQUEST;
+  char *str = "a";
+  int pktMsgLen = Packetize(msgID, str, 1, pktBuf, 255);
+  printf("pktMsgLen: %d\n", pktMsgLen);
+  /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
+  int sendMsgLen = sendto(sock, pktBuf, pktMsgLen, 0,
+    (struct sockaddr*)pServAddr, sizeof(*pServAddr));
+  printf("sendMsgLen: %d\n", sendMsgLen);
+    
+  return sendMsgLen;
 }
 
 /*
