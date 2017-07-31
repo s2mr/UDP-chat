@@ -118,9 +118,9 @@ void IOSignalHandler(int signo)
 {
   struct sockaddr_in clntAddr;	/* クライアント用アドレス構造体 */
   unsigned int clntAddrLen;		/* クライアント用アドレス構造体の長さ */
-  char pktBuffer[ECHOMAX];		/* 受信パケットバッファ */
+  char recvPktBuffer[ECHOMAX];		/* 受信パケットバッファ */
   char recvMsgBuffer[ECHOMAX];      /* 受信メッセージバッファ */
-  int pktLen;				/* 受信パケットの長さ */
+  int recvPktLen;				/* 受信パケットの長さ */
   int recvMsgLen;				/* 受信メッセージの長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
 
@@ -131,15 +131,15 @@ void IOSignalHandler(int signo)
     clntAddrLen = sizeof(clntAddr);
     
     memset(recvMsgBuffer, '\0', ECHOMAX);
-    memset(pktBuffer, '\0', ECHOMAX);
+    memset(recvPktBuffer, '\0', ECHOMAX);
 
     /* クライアントからメッセージを受信する．(※この呼び出しはブロックしない) */
     // ■未実装■
-    pktLen = recvfrom(sock, pktBuffer, ECHOMAX, 0, (struct sockaddr*)&clntAddr,
+    recvPktLen = recvfrom(sock, recvPktBuffer, ECHOMAX, 0, (struct sockaddr*)&clntAddr,
      &clntAddrLen);
 
     /* 受信メッセージの長さを確認する．*/
-    if (pktLen < 0) {
+    if (recvPktLen < 0) {
       /* errono が EWOULDBLOCK である場合，受信データが無くなったことを示す．*/
       /* EWOULDBLOCK は，許容できる唯一のエラー．*/
       if (errno != EWOULDBLOCK) {
@@ -150,12 +150,12 @@ void IOSignalHandler(int signo)
       short msgID;
       
       short msgBufSize;
-      memcpy(&msgBufSize, &pktBuffer[2], sizeof(short));
+      memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
       printf("msgBufSize: %d\n", msgBufSize);
       
-      recvMsgLen = Depacketize(pktBuffer, pktLen, &msgID, recvMsgBuffer, msgBufSize);
+      recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
       printf("msgID: %d\n", msgID);
-      printf("pktLen: %d\n", pktLen);
+      printf("pktLen: %d\n", recvPktLen);
       printf("recvStr: %s\n", recvMsgBuffer);
       printf("recvMsgLen: %d\n", recvMsgLen);
       
@@ -172,9 +172,19 @@ void IOSignalHandler(int signo)
           sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
           break;
         default:
-          break;
-        
+          break;  
       }
+      
+      /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
+      // char pktBuf[255];
+      // int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, 255);
+      // 
+      // printf("pktMsgLen : %d\n", pktMsgLen);
+      // printf("echoString : %s\n", echoString);
+      // printf("pktBuf : %s\n", pktBuf);
+      
+      // sendMsgLen = sendto(sock, recvPktBuf, recvPktMsgLen, 0,
+      //   (struct sockaddr*)pServAddr, sizeof(*pServAddr));
 
       /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
       // ■未実装■
@@ -183,11 +193,17 @@ void IOSignalHandler(int signo)
       //   exit(1);
       // }
     }
-  } while (pktLen >= 0);
+  } while (recvPktLen >= 0);
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
-  return 0;
+  printf("msgID: %d\n", msgID);
+  
+  memcpy(&pktBuf[0], &msgID, sizeof(short));
+  memcpy(&pktBuf[2], &msgLen, sizeof(short));
+  memcpy(&pktBuf[4], msgBuf, msgLen);
+  
+  return 2 + 2 + msgLen;
 }
 
 int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
