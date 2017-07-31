@@ -32,7 +32,7 @@ struct client {
   unsigned short port;
 };
 
-struct client clients[5];
+struct sockaddr_in clients[5];
 int userCount = 0;
 
 int main(int argc, char *argv[])
@@ -178,17 +178,15 @@ void IOSignalHandler(int signo)
       
       if(isNewUser(clntAddr)==1) {
         printf("新規ユーザ\n");
-        strcpy(clients[userCount].addr, inet_ntoa(clntAddr.sin_addr));
-        clients[userCount].port = clntAddr.sin_port;
+        clients[userCount] = clntAddr;
         userCount++;
       }else {
         printf("既存ユーザ\n");
       }
       
       printf("------clients------\n");
-      int i;
-      for(i=0; i<userCount; i++) {
-        printf("Client%d IP: %s PORT: %u\n",i, clients[i].addr, clients[i].port);
+      for(int i=0; i<userCount; i++) {
+        printf("Client%d IP: %s PORT: %u\n",i, inet_ntoa(clients[i].sin_addr), clients[i].sin_port);
       }
       printf("------clients------\n");
       
@@ -196,9 +194,7 @@ void IOSignalHandler(int signo)
       
       switch(msgID) {
         case MSGID_JOIN_REQUEST:
-          // sendto(sock, "ok", 2, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
           sendPktLen = Packetize(MSGID_JOIN_RESPONSE, NULL, 0, sendPktBuf, ECHOMAX);
-
           break;
         case MSGID_CHAT_TEXT:
           /* 受信メッセージをそのままクライアントに送信する．*/
@@ -214,8 +210,11 @@ void IOSignalHandler(int signo)
       printf("sendPktBuf : %s\n", sendPktBuf);
       
       /* エコーサーバへメッセージパケットを送信する．*/
-      sendMsgLen = sendto(sock, sendPktBuf, sendPktLen, 0,
-       (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+      for(int i=0; i<userCount; i++) {
+        printf("SENT\t");
+        sendMsgLen = sendto(sock, sendPktBuf, sendPktLen, 0, (struct sockaddr*)&clients[i], sizeof(clients[i]));
+        printf("sendMsgLen: %d", sendMsgLen);
+      }
 
       /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
       // ■未実装■
@@ -228,9 +227,8 @@ void IOSignalHandler(int signo)
 }
 
 int isNewUser(struct sockaddr_in sa) {
-  int i;
-  for(i=0; i<userCount+1; i++) {
-    if(strcmp(clients[i].addr, inet_ntoa(sa.sin_addr))==0 && clients[i].port==sa.sin_port)
+  for(int i=0; i<userCount+1; i++) {
+    if(strcmp(inet_ntoa(clients[i].sin_addr), inet_ntoa(sa.sin_addr))==0 && clients[i].sin_port==sa.sin_port)
       return 0;
   }
   return 1;
