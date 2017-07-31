@@ -25,6 +25,7 @@
 
 int sock;							/* ソケットディスクリプタ */
 void IOSignalHandler(int signo);	/* SIGIO 発生時のシグナルハンドラ */
+int isNewUser(struct sockaddr_in sa);
 
 struct client {
   char addr[20];
@@ -175,10 +176,14 @@ void IOSignalHandler(int signo)
       // ■未実装■
       printf("Handling client %s (%u)\n", inet_ntoa(clntAddr.sin_addr), clntAddr.sin_port);
       
-      strcpy(clients[userCount].addr, inet_ntoa(clntAddr.sin_addr));
-      clients[userCount].port = clntAddr.sin_port;
-      
-      userCount++;
+      if(isNewUser(clntAddr)==1) {
+        printf("新規ユーザ\n");
+        strcpy(clients[userCount].addr, inet_ntoa(clntAddr.sin_addr));
+        clients[userCount].port = clntAddr.sin_port;
+        userCount++;
+      }else {
+        printf("既存ユーザ\n");
+      }
       
       printf("------clients------\n");
       int i;
@@ -220,6 +225,15 @@ void IOSignalHandler(int signo)
       // }
     }
   } while (recvPktLen >= 0);
+}
+
+int isNewUser(struct sockaddr_in sa) {
+  int i;
+  for(i=0; i<userCount+1; i++) {
+    if(strcmp(clients[i].addr, inet_ntoa(sa.sin_addr))==0 && clients[i].port==sa.sin_port)
+      return 0;
+  }
+  return 1;
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
