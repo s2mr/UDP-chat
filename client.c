@@ -162,7 +162,7 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
   char pktBuf[255];
   int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, 255);
-  
+  printf("send-------------------\n");
   printf("pktMsgLen : %d\n", pktMsgLen);
   printf("echoString : %s\n", echoString);
   printf("pktBuf : %s\n", pktBuf);
@@ -186,16 +186,20 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
 {
   struct sockaddr_in fromAddr;	/* メッセージ送信元用アドレス構造体 */
   unsigned int fromAddrLen;		/* メッセージ送信元用アドレス構造体の長さ */
-  char msgBuffer[ECHOMAX + 1];	/* メッセージ送受信バッファ */
-  int recvMsgLen;				/* 受信メッセージの長さ */
+  char recvPktBuffer[ECHOMAX + 1];	/* パケット受信バッファ */
+  char recvMsgBuffer[ECHOMAX + 1];	/* パケット受信バッファ */
+  int recvPktLen;				/* 受信パケットの長さ */
+  int recvMsgLen;       /* 受信メッセージの長さ */
+  
+  memset(recvMsgBuffer, '\0', ECHOMAX+1);
 
   /* エコーメッセージ送信元用アドレス構造体の長さを初期化する．*/
   fromAddrLen = sizeof(fromAddr);
 
   /* エコーメッセージを受信する．*/
-  recvMsgLen = recvfrom(sock, msgBuffer, ECHOMAX, 0,
+  recvPktLen = recvfrom(sock, recvPktBuffer, ECHOMAX, 0,
     (struct sockaddr*)&fromAddr, &fromAddrLen);
-  if (recvMsgLen < 0) {
+  if (recvPktLen < 0) {
     fprintf(stderr, "recvfrom() failed");
     return -1;
   }
@@ -206,10 +210,19 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
     return -1;
   }
 
-  /* 受信したエコーメッセージをNULL文字で終端し，表示する．*/
-  msgBuffer[recvMsgLen] = '\0';
-  printf("Received: %s\n", msgBuffer);
+  printf("received--------------------\n");
+  
+  short msgID;
+  short msgBufSize;
+  memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
+  printf("msgBufSize: %d\n", msgBufSize);
 
+  recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
+  printf("msgID: %d\n", msgID);
+  printf("recvPktLen: %d\n", recvPktLen);
+  printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+  printf("recvMsgLen: %d\n", recvMsgLen);
+  
   return 0;
 }
 
@@ -224,5 +237,8 @@ int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufS
 }
 
 int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
-  return 0;
+  memcpy(msgID, &pktBuf[0], sizeof(short));
+  memcpy(msgBuf, &pktBuf[4], msgBufSize);
+  
+  return strlen(msgBuf);
 }

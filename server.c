@@ -122,6 +122,8 @@ void IOSignalHandler(int signo)
   char recvMsgBuffer[ECHOMAX];      /* 受信メッセージバッファ */
   int recvPktLen;				/* 受信パケットの長さ */
   int recvMsgLen;				/* 受信メッセージの長さ */
+  char sendPktBuf[ECHOMAX];  /* 送信パケットバッファ*/
+  int sendPktLen; /* 送信パケットの長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
 
   /* 受信データがなくなるまで，受信と送信を繰り返す．*/
@@ -148,15 +150,17 @@ void IOSignalHandler(int signo)
       }
     } else {
       short msgID;
-      
       short msgBufSize;
       memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
+      
+      printf("received-------------------\n");
+      
       printf("msgBufSize: %d\n", msgBufSize);
       
       recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
       printf("msgID: %d\n", msgID);
-      printf("pktLen: %d\n", recvPktLen);
-      printf("recvStr: %s\n", recvMsgBuffer);
+      printf("recvPktLen: %d\n", recvPktLen);
+      printf("recvMsgBuffer: %s\n", recvMsgBuffer);
       printf("recvMsgLen: %d\n", recvMsgLen);
       
       /* クライアントのIPアドレスを表示する．*/
@@ -165,26 +169,29 @@ void IOSignalHandler(int signo)
       
       switch(msgID) {
         case MSGID_JOIN_REQUEST:
-          sendto(sock, "ok", 2, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+          // sendto(sock, "ok", 2, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+          sendPktLen = Packetize(MSGID_JOIN_RESPONSE, NULL, 0, sendPktBuf, ECHOMAX);
+
           break;
         case MSGID_CHAT_TEXT:
           /* 受信メッセージをそのままクライアントに送信する．*/
-          sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+          // sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+          sendPktLen = Packetize(MSGID_CHAT_TEXT, recvMsgBuffer, recvMsgLen, sendPktBuf, ECHOMAX);
           break;
         default:
           break;  
       }
       
-      /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
-      // char pktBuf[255];
-      // int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, 255);
-      // 
-      // printf("pktMsgLen : %d\n", pktMsgLen);
-      // printf("echoString : %s\n", echoString);
-      // printf("pktBuf : %s\n", pktBuf);
+      printf("send----------------------\n");
+
+      // printf("sendPktMsgLen : %d\n", sendPktMsgLen);
+      printf("sendMsgBuffer : %s\n", recvMsgBuffer);
+      printf("sendPktLen : %d\n", sendPktLen);
+      printf("sendPktBuf : %s\n", sendPktBuf);
       
-      // sendMsgLen = sendto(sock, recvPktBuf, recvPktMsgLen, 0,
-      //   (struct sockaddr*)pServAddr, sizeof(*pServAddr));
+      /* エコーサーバへメッセージパケットを送信する．*/
+      sendMsgLen = sendto(sock, sendPktBuf, sendPktLen, 0,
+       (struct sockaddr*)&clntAddr, sizeof(clntAddr));
 
       /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
       // ■未実装■
