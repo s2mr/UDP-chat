@@ -127,6 +127,7 @@ int main(int argc, char *argv[])
 int SendJoinRequest(int sock, struct sockaddr_in *pServAddr) {
   char pktBuf[255];
   int msgID = MSGID_JOIN_REQUEST;
+  printf("send-------------\n");
   int pktMsgLen = Packetize(msgID, NULL, 0, pktBuf, 255);
   printf("pktMsgLen: %d\n", pktMsgLen);
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
@@ -161,8 +162,8 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
 
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
   char pktBuf[255];
-  int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, 255);
   printf("send-------------------\n");
+  int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, 255);
   printf("pktMsgLen : %d\n", pktMsgLen);
   printf("echoString : %s\n", echoString);
   printf("pktBuf : %s\n", pktBuf);
@@ -218,7 +219,7 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
   printf("msgBufSize: %d\n", msgBufSize);
 
   recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
-  printf("msgID: %d\n", msgID);
+  printf("msgID: %x\n", msgID);
   printf("recvPktLen: %d\n", recvPktLen);
   printf("recvMsgBuffer: %s\n", recvMsgBuffer);
   printf("recvMsgLen: %d\n", recvMsgLen);
@@ -227,7 +228,7 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
-  printf("msgID: %d\n", msgID);
+  printf("msgID: %x\n", msgID);
   
   memcpy(&pktBuf[0], &msgID, sizeof(short));
   memcpy(&pktBuf[2], &msgLen, sizeof(short));

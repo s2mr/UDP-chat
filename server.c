@@ -158,7 +158,7 @@ void IOSignalHandler(int signo)
       printf("msgBufSize: %d\n", msgBufSize);
       
       recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
-      printf("msgID: %d\n", msgID);
+      printf("msgID: %x\n", msgID);
       printf("recvPktLen: %d\n", recvPktLen);
       printf("recvMsgBuffer: %s\n", recvMsgBuffer);
       printf("recvMsgLen: %d\n", recvMsgLen);
@@ -166,6 +166,8 @@ void IOSignalHandler(int signo)
       /* クライアントのIPアドレスを表示する．*/
       // ■未実装■
       printf("Handling client %s\n", inet_ntoa(clntAddr.sin_addr));
+      
+      printf("send----------------------\n");
       
       switch(msgID) {
         case MSGID_JOIN_REQUEST:
@@ -181,9 +183,6 @@ void IOSignalHandler(int signo)
         default:
           break;  
       }
-      
-      printf("send----------------------\n");
-
       // printf("sendPktMsgLen : %d\n", sendPktMsgLen);
       printf("sendMsgBuffer : %s\n", recvMsgBuffer);
       printf("sendPktLen : %d\n", sendPktLen);
@@ -204,7 +203,7 @@ void IOSignalHandler(int signo)
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
-  printf("msgID: %d\n", msgID);
+  printf("msgID: %x\n", msgID);
   
   memcpy(&pktBuf[0], &msgID, sizeof(short));
   memcpy(&pktBuf[2], &msgLen, sizeof(short));
