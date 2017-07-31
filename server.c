@@ -162,18 +162,26 @@ void IOSignalHandler(int signo)
       /* クライアントのIPアドレスを表示する．*/
       // ■未実装■
       printf("Handling client %s\n", inet_ntoa(clntAddr.sin_addr));
-
-      /* 受信メッセージをそのままクライアントに送信する．*/
-      // ■未実装■
-      sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr,
-       sizeof(clntAddr));
+      
+      switch(msgID) {
+        case MSGID_JOIN_REQUEST:
+          sendto(sock, "ok", 2, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+          break;
+        case MSGID_CHAT_TEXT:
+          /* 受信メッセージをそのままクライアントに送信する．*/
+          sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+          break;
+        default:
+          break;
+        
+      }
 
       /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
       // ■未実装■
-      if(recvMsgLen != sendMsgLen) {
-        fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
-        exit(1);
-      }
+      // if(recvMsgLen != sendMsgLen) {
+      //   fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
+      //   exit(1);
+      // }
     }
   } while (pktLen >= 0);
 }
