@@ -26,6 +26,14 @@
 int sock;							/* ソケットディスクリプタ */
 void IOSignalHandler(int signo);	/* SIGIO 発生時のシグナルハンドラ */
 
+struct client {
+  char addr[20];
+  unsigned short port;
+};
+
+struct client clients[5];
+int userCount = 0;
+
 int main(int argc, char *argv[])
 {
   unsigned short servPort;			/* エコーサーバ(ローカル)のポート番号 */
@@ -165,7 +173,19 @@ void IOSignalHandler(int signo)
       
       /* クライアントのIPアドレスを表示する．*/
       // ■未実装■
-      printf("Handling client %s\n", inet_ntoa(clntAddr.sin_addr));
+      printf("Handling client %s (%u)\n", inet_ntoa(clntAddr.sin_addr), clntAddr.sin_port);
+      
+      strcpy(clients[userCount].addr, inet_ntoa(clntAddr.sin_addr));
+      clients[userCount].port = clntAddr.sin_port;
+      
+      userCount++;
+      
+      printf("------clients------\n");
+      int i;
+      for(i=0; i<userCount; i++) {
+        printf("Client%d IP: %s PORT: %u\n",i, clients[i].addr, clients[i].port);
+      }
+      printf("------clients------\n");
       
       printf("send----------------------\n");
       
