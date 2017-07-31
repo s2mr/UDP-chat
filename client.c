@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
   maxDescriptor = sock;
   
   /* サーバに参加したいというリクエストを送信する */
-  //SendJoinRequest(sock, &servAddr);
+  SendJoinRequest(sock, &servAddr);
 
   /* 文字列入力・メッセージ送信，およびメッセージ受信・表示処理ループ */
   for (;;) {
@@ -127,8 +127,7 @@ int main(int argc, char *argv[])
 int SendJoinRequest(int sock, struct sockaddr_in *pServAddr) {
   char pktBuf[255];
   int msgID = MSGID_JOIN_REQUEST;
-  char *str = "a";
-  int pktMsgLen = Packetize(msgID, str, 1, pktBuf, 255);
+  int pktMsgLen = Packetize(msgID, NULL, 0, pktBuf, 255);
   printf("pktMsgLen: %d\n", pktMsgLen);
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
   int sendMsgLen = sendto(sock, pktBuf, pktMsgLen, 0,
@@ -215,25 +214,12 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
-  //memset(pktBuf, '\0', pktBufSize);
-  
-  printf("&msgID: %p\n", &msgID);
   printf("msgID: %d\n", msgID);
   
-  char *s1 = "ho";
-  char *s2 = "ge";
-  
-  // memcpy(&pktBuf[0], s1, 2);
-  // memcpy(&pktBuf[2], s1, 2);
-  
-  // msgID = 123;
   memcpy(&pktBuf[0], &msgID, sizeof(short));
   memcpy(&pktBuf[2], &msgLen, sizeof(short));
   memcpy(&pktBuf[4], msgBuf, msgLen);
   
-  // memcpy();
-  
-  // memcpy(pktBuf, msgBuf, msgLen);  
   return 2 + 2 + msgLen;
 }
 
