@@ -26,6 +26,7 @@
 int sock;							/* ソケットディスクリプタ */
 void IOSignalHandler(int signo);	/* SIGIO 発生時のシグナルハンドラ */
 int isNewUser(struct sockaddr_in sa);
+void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen);
 
 struct client {
   char addr[20];
@@ -131,9 +132,7 @@ void IOSignalHandler(int signo)
   char recvMsgBuffer[ECHOMAX];      /* 受信メッセージバッファ */
   int recvPktLen;				/* 受信パケットの長さ */
   int recvMsgLen;				/* 受信メッセージの長さ */
-  char sendPktBuf[ECHOMAX];  /* 送信パケットバッファ*/
-  int sendPktLen; /* 送信パケットの長さ */
-  int sendMsgLen;				/* 送信メッセージの長さ */
+
 
   /* 受信データがなくなるまで，受信と送信を繰り返す．*/
   do {
@@ -190,40 +189,48 @@ void IOSignalHandler(int signo)
       }
       printf("------clients------\n");
       
-      printf("send----------------------\n");
-      
-      switch(msgID) {
-        case MSGID_JOIN_REQUEST:
-          sendPktLen = Packetize(MSGID_JOIN_RESPONSE, NULL, 0, sendPktBuf, ECHOMAX);
-          break;
-        case MSGID_CHAT_TEXT:
-          /* 受信メッセージをそのままクライアントに送信する．*/
-          // sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
-          sendPktLen = Packetize(MSGID_CHAT_TEXT, recvMsgBuffer, recvMsgLen, sendPktBuf, ECHOMAX);
-          break;
-        default:
-          break;  
-      }
-      // printf("sendPktMsgLen : %d\n", sendPktMsgLen);
-      printf("sendMsgBuffer : %s\n", recvMsgBuffer);
-      printf("sendPktLen : %d\n", sendPktLen);
-      printf("sendPktBuf : %s\n", sendPktBuf);
-      
-      /* エコーサーバへメッセージパケットを送信する．*/
-      for(int i=0; i<userCount; i++) {
-        printf("SENT\t");
-        sendMsgLen = sendto(sock, sendPktBuf, sendPktLen, 0, (struct sockaddr*)&clients[i], sizeof(clients[i]));
-        printf("sendMsgLen: %d", sendMsgLen);
-      }
-
-      /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
-      // ■未実装■
-      // if(recvMsgLen != sendMsgLen) {
-      //   fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
-      //   exit(1);
-      // }
+      sendMsg(msgID, recvMsgBuffer, recvMsgLen);
     }
   } while (recvPktLen >= 0);
+}
+
+void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen) {
+  char sendPktBuf[ECHOMAX];  /* 送信パケットバッファ*/
+  int sendPktLen; /* 送信パケットの長さ */
+  int sendMsgLen;				/* 送信メッセージの長さ */
+  
+  printf("send----------------------\n");
+  
+  switch(recvMsgID) {
+    case MSGID_JOIN_REQUEST:
+      sendPktLen = Packetize(MSGID_JOIN_RESPONSE, NULL, 0, sendPktBuf, ECHOMAX);
+      break;
+    case MSGID_CHAT_TEXT:
+      /* 受信メッセージをそのままクライアントに送信する．*/
+      // sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
+      sendPktLen = Packetize(MSGID_CHAT_TEXT, recvMsgBuffer, recvMsgLen, sendPktBuf, ECHOMAX);
+      break;
+    default:
+      break;  
+  }
+  // printf("sendPktMsgLen : %d\n", sendPktMsgLen);
+  printf("sendMsgBuffer : %s\n", recvMsgBuffer);
+  printf("sendPktLen : %d\n", sendPktLen);
+  printf("sendPktBuf : %s\n", sendPktBuf);
+  
+  /* エコーサーバへメッセージパケットを送信する．*/
+  for(int i=0; i<userCount; i++) {
+    printf("SENT\t");
+    sendMsgLen = sendto(sock, sendPktBuf, sendPktLen, 0, (struct sockaddr*)&clients[i], sizeof(clients[i]));
+    printf("sendMsgLen: %d", sendMsgLen);
+  }
+
+  /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
+  // ■未実装■
+  // if(recvMsgLen != sendMsgLen) {
+  //   fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
+  //   exit(1);
+  // }
 }
 
 int isNewUser(struct sockaddr_in sa) {
