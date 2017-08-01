@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     // 3, 4番目ー＞標準出力、TCPの帯域外データ受信があるかどうかをチェックする
     if (select(maxDescriptor + 1, &fdSet, NULL, NULL, &tout) == 0) {
       /* タイムアウト */
-      printf(".\n");
+      // printf(".\n");
       continue;
     }
 
@@ -127,13 +127,13 @@ int main(int argc, char *argv[])
 int SendJoinRequest(int sock, struct sockaddr_in *pServAddr) {
   char pktBuf[ECHOMAX];
   int msgID = MSGID_JOIN_REQUEST;
-  printf("send-------------\n");
+  // printf("send-------------\n");
   int pktMsgLen = Packetize(msgID, NULL, 0, pktBuf, ECHOMAX);
-  printf("pktMsgLen: %d\n", pktMsgLen);
+  // printf("pktMsgLen: %d\n", pktMsgLen);
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
   int sendMsgLen = sendto(sock, pktBuf, pktMsgLen, 0,
     (struct sockaddr*)pServAddr, sizeof(*pServAddr));
-  printf("sendMsgLen: %d\n", sendMsgLen);
+  // printf("sendMsgLen: %d\n", sendMsgLen);
     
   return sendMsgLen;
 }
@@ -143,6 +143,7 @@ int SendJoinRequest(int sock, struct sockaddr_in *pServAddr) {
  */
 int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
 {
+  // printf("send-------------------\n");
   char echoString[ECHOMAX + 1];	/* エコーサーバへ送信する文字列 */
   int echoStringLen;			/* エコーサーバへ送信する文字列の長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
@@ -162,11 +163,10 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
 
   /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
   char pktBuf[ECHOMAX];
-  printf("send-------------------\n");
   int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, ECHOMAX);
-  printf("pktMsgLen : %d\n", pktMsgLen);
-  printf("echoString : %s\n", echoString);
-  printf("pktBuf : %s\n", pktBuf);
+  // printf("pktMsgLen : %d\n", pktMsgLen);
+  // printf("echoString : %s\n", echoString);
+  // printf("pktBuf : %s\n", pktBuf);
   
   sendMsgLen = sendto(sock, pktBuf, pktMsgLen, 0,
     (struct sockaddr*)pServAddr, sizeof(*pServAddr));
@@ -185,6 +185,8 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
  */
 int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
 {
+  // printf("received--------------------\n");
+
   struct sockaddr_in fromAddr;	/* メッセージ送信元用アドレス構造体 */
   unsigned int fromAddrLen;		/* メッセージ送信元用アドレス構造体の長さ */
   char recvPktBuffer[ECHOMAX + 1];	/* パケット受信バッファ */
@@ -210,25 +212,35 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
     fprintf(stderr,"Error: received a packet from unknown source.\n");
     return -1;
   }
-
-  printf("received--------------------\n");
   
   short msgID = MSGID_NONE;
   short msgBufSize;
   memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
-  printf("msgBufSize: %d\n", msgBufSize);
+  // printf("msgBufSize: %d\n", msgBufSize);
 
   recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
-  printf("msgID: %x\n", msgID);
-  printf("recvPktLen: %d\n", recvPktLen);
-  printf("recvMsgBuffer: %s\n", recvMsgBuffer);
-  printf("recvMsgLen: %d\n", recvMsgLen);
+  
+  switch(msgID) {
+    case MSGID_JOIN_RESPONSE:
+      printf("ルームに入室しました\n");
+      break;
+    case MSGID_CHAT_TEXT:
+      printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+      break;
+    default:
+      printf("終了します（しません）\n");
+      break;
+  }
+  // printf("msgID: %x\n", msgID);
+  // printf("recvPktLen: %d\n", recvPktLen);
+  // printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+  // printf("recvMsgLen: %d\n", recvMsgLen);
   
   return 0;
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
-  printf("msgID: %x\n", msgID);
+  // printf("msgID: %x\n", msgID);
   
   memcpy(&pktBuf[0], &msgID, sizeof(short));
   memcpy(&pktBuf[2], &msgLen, sizeof(short));
