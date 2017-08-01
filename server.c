@@ -158,7 +158,7 @@ void IOSignalHandler(int signo)
         exit(1);
       }
     } else {
-      short msgID;
+      short msgID = MSGID_NONE;
       short msgBufSize;
       memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
       
