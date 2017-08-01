@@ -216,25 +216,30 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
   short msgID = MSGID_NONE;
   short msgBufSize;
   memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
+  
+  short userID=0;
+  memcpy(&userID, &recvPktBuffer[4], sizeof(short));
   // printf("msgBufSize: %d\n", msgBufSize);
+  // printf("msgID: %x\n", msgID);
+  // printf("recvPktLen: %d\n", recvPktLen);
+  // printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+  printf("recvPktBuffer: %s\n", recvPktBuffer);
+  // printf("recvMsgLen: %d\n", recvMsgLen);
 
   recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
   
   switch(msgID) {
     case MSGID_JOIN_RESPONSE:
       printf("ルームに入室しました\n");
+      printf("recvMsgBuffer: %s\n", recvMsgBuffer);
       break;
     case MSGID_CHAT_TEXT:
-      printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+      printf("Client %d: %s\n",userID, recvMsgBuffer);
       break;
     default:
       printf("終了します（しません）\n");
       break;
   }
-  // printf("msgID: %x\n", msgID);
-  // printf("recvPktLen: %d\n", recvPktLen);
-  // printf("recvMsgBuffer: %s\n", recvMsgBuffer);
-  // printf("recvMsgLen: %d\n", recvMsgLen);
   
   return 0;
 }
@@ -251,7 +256,7 @@ int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufS
 
 int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
   memcpy(msgID, &pktBuf[0], sizeof(short));
-  memcpy(msgBuf, &pktBuf[4], msgBufSize);
+  memcpy(msgBuf, &pktBuf[5], msgBufSize);
   
   return strlen(msgBuf);
 }

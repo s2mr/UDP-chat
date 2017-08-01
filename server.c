@@ -25,8 +25,8 @@
 
 int sock;							/* ソケットディスクリプタ */
 void IOSignalHandler(int signo);	/* SIGIO 発生時のシグナルハンドラ */
-int isNewUser(struct sockaddr_in sa);
-void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, int userID);
+short isNewUser(struct sockaddr_in sa);
+void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, short userID);
 
 struct client {
   char addr[20];
@@ -175,7 +175,7 @@ void IOSignalHandler(int signo)
       // ■未実装■
       printf("Handling client %s (%u)\n", inet_ntoa(clntAddr.sin_addr), clntAddr.sin_port);
       
-      int userID = isNewUser(clntAddr);
+      short userID = isNewUser(clntAddr);
       if(userID==-1) {
         printf("新規ユーザ\n");
         clients[userCount] = clntAddr;
@@ -195,35 +195,39 @@ void IOSignalHandler(int signo)
   } while (recvPktLen >= 0);
 }
 
-void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, int userID) {
+void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, short userID) {
   char sendPktBuf[ECHOMAX];  /* 送信パケットバッファ*/
+  char sendMsgBuffer[ECHOMAX];
   int sendPktLen; /* 送信パケットの長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
   
   printf("send----------------------\n");
   
-  //送信者を格納
-  char id[3];
-  sprintf(id, "%d", userID);
-  strcat(recvMsgBuffer, id);
-  recvMsgLen+=5;
+  //送信者を格納 ex-> 1hello 
+  //sprintf(sendMsgBuffer, "%d", userID);  
+  memcpy(&sendMsgBuffer[0], &userID, sizeof(short));
   
+  printf("userID: %d\n", userID);
+  printf("sendMsgBuffer: %s\n", sendMsgBuffer);
   switch(recvMsgID) {
     case MSGID_JOIN_REQUEST:
-      sendPktLen = Packetize(MSGID_JOIN_RESPONSE, NULL, 0, sendPktBuf, ECHOMAX);
+      sendPktLen = Packetize(MSGID_JOIN_RESPONSE, sendMsgBuffer, sizeof(short), sendPktBuf, ECHOMAX);
       break;
     case MSGID_CHAT_TEXT:
+    
+      // strcat(sendMsgBuffer, recvMsgBuffer);
+      memcpy(&sendMsgBuffer[2], recvMsgBuffer, recvMsgLen);
       /* 受信メッセージをそのままクライアントに送信する．*/
       // sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
-      sendPktLen = Packetize(MSGID_CHAT_TEXT, recvMsgBuffer, recvMsgLen, sendPktBuf, ECHOMAX);
+      sendPktLen = Packetize(MSGID_CHAT_TEXT, sendMsgBuffer, recvMsgLen+sizeof(short), sendPktBuf, ECHOMAX);
       break;
     default:
       break;  
   }
   // printf("sendPktMsgLen : %d\n", sendPktMsgLen);
-  printf("sendMsgBuffer : %s\n", recvMsgBuffer);
-  printf("sendPktLen : %d\n", sendPktLen);
-  printf("sendPktBuf : %s\n", sendPktBuf);
+  printf("sendMsgBuffer: %s\n", sendMsgBuffer);
+  printf("sendPktLen: %d\n", sendPktLen);
+  printf("sendPktBuf: %s\n", sendPktBuf);
   
   /* エコーサーバへメッセージパケットを送信する．*/
   for(int i=0; i<userCount; i++) {
@@ -240,7 +244,7 @@ void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, int userID) {
   // }
 }
 
-int isNewUser(struct sockaddr_in sa) {
+short isNewUser(struct sockaddr_in sa) {
   for(int i=0; i<userCount+1; i++) {
     if(strcmp(inet_ntoa(clients[i].sin_addr), inet_ntoa(sa.sin_addr))==0 && clients[i].sin_port==sa.sin_port)
       return i;
