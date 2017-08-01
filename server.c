@@ -26,7 +26,7 @@
 int sock;							/* ソケットディスクリプタ */
 void IOSignalHandler(int signo);	/* SIGIO 発生時のシグナルハンドラ */
 int isNewUser(struct sockaddr_in sa);
-void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen);
+void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, int userID);
 
 struct client {
   char addr[20];
@@ -175,7 +175,8 @@ void IOSignalHandler(int signo)
       // ■未実装■
       printf("Handling client %s (%u)\n", inet_ntoa(clntAddr.sin_addr), clntAddr.sin_port);
       
-      if(isNewUser(clntAddr)==1) {
+      int userID = isNewUser(clntAddr);
+      if(userID==-1) {
         printf("新規ユーザ\n");
         clients[userCount] = clntAddr;
         userCount++;
@@ -189,17 +190,23 @@ void IOSignalHandler(int signo)
       }
       printf("------clients------\n");
       
-      sendMsg(msgID, recvMsgBuffer, recvMsgLen);
+      sendMsg(msgID, recvMsgBuffer, recvMsgLen, userID);
     }
   } while (recvPktLen >= 0);
 }
 
-void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen) {
+void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, int userID) {
   char sendPktBuf[ECHOMAX];  /* 送信パケットバッファ*/
   int sendPktLen; /* 送信パケットの長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
   
   printf("send----------------------\n");
+  
+  //送信者を格納
+  char id[3];
+  sprintf(id, "%d", userID);
+  strcat(recvMsgBuffer, id);
+  recvMsgLen+=5;
   
   switch(recvMsgID) {
     case MSGID_JOIN_REQUEST:
@@ -236,9 +243,9 @@ void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen) {
 int isNewUser(struct sockaddr_in sa) {
   for(int i=0; i<userCount+1; i++) {
     if(strcmp(inet_ntoa(clients[i].sin_addr), inet_ntoa(sa.sin_addr))==0 && clients[i].sin_port==sa.sin_port)
-      return 0;
+      return i;
   }
-  return 1;
+  return -1;
 }
 
 int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufSize) {
