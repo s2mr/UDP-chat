@@ -1,15 +1,3 @@
-/* 
- * ■情報ネットワーク実践論（橋本担当分）  サンプルソースコード (6)
- *
- * UDPエコーサーバー：非同期I/O対応版 ※レポート課題2※
- *
- *	コンパイル：gcc -Wall -o UDPEchoServer-AsyncRep UDPEchoServer-AsyncRep.c
- *		使い方：UDPEchoServer-Async <Echo Port>
- *
- *		※利用するポート番号は 10000 + 学籍番号の下4桁
- *			［例］学籍番号が 0312013180 の場合： 10000 + 3180 = 13180
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -190,6 +178,9 @@ void IOSignalHandler(int signo)
       }
       printf("------clients------\n");
       
+      if(userID==-1)
+        userID = userCount-1;
+      
       sendMsg(msgID, recvMsgBuffer, recvMsgLen, userID);
     }
   } while (recvPktLen >= 0);
@@ -215,11 +206,8 @@ void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, short userID)
       sendPktLen = Packetize(MSGID_JOIN_RESPONSE, sendMsgBuffer, sizeof(short), sendPktBuf, ECHOMAX);
       break;
     case MSGID_CHAT_TEXT:
-    
-      // strcat(sendMsgBuffer, recvMsgBuffer);
       memcpy(&sendMsgBuffer[2], recvMsgBuffer, recvMsgLen);
       /* 受信メッセージをそのままクライアントに送信する．*/
-      // sendMsgLen = sendto(sock, recvMsgBuffer, recvMsgLen, 0, (struct sockaddr*)&clntAddr, sizeof(clntAddr));
       sendPktLen = Packetize(MSGID_CHAT_TEXT, sendMsgBuffer, recvMsgLen+sizeof(short), sendPktBuf, ECHOMAX);
       break;
     default:
@@ -236,13 +224,6 @@ void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, short userID)
     sendMsgLen = sendto(sock, sendPktBuf, sendPktLen, 0, (struct sockaddr*)&clients[i], sizeof(clients[i]));
     printf("sendMsgLen: %d", sendMsgLen);
   }
-
-  /* 受信メッセージの長さと送信されたメッセージの長さが等しいことを確認する．*/
-  // ■未実装■
-  // if(recvMsgLen != sendMsgLen) {
-  //   fprintf(stderr, "sendto() sent a different number of bytes than expected\n");
-  //   exit(1);
-  // }
 }
 
 short isNewUser(struct sockaddr_in sa) {

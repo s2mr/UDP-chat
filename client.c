@@ -1,15 +1,3 @@
-/* 
- * ■情報ネットワーク実践論（橋本担当分）  サンプルソースコード (7)
- *
- * UDPエコークライアント：Select関数を使った多重化処理対応版
- *
- *	コンパイル：gcc -Wall -o UDPEchoClient-Select UDPEchoClient-Select.c
- *		使い方：UDPEchoClient-Select <Server IP> [<Echo Port>]
- *
- *		※利用するポート番号は 10000 + 学籍番号の下4桁
- *			［例］学籍番号が 0312013180 の場合： 10000 + 3180 = 13180
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <arpa/inet.h>
@@ -217,6 +205,7 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
   short msgBufSize;
   memcpy(&msgBufSize, &recvPktBuffer[2], sizeof(short));
   
+  static short myID;
   short userID=0;
   memcpy(&userID, &recvPktBuffer[4], sizeof(short));
   // printf("msgBufSize: %d\n", msgBufSize);
@@ -228,13 +217,24 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
 
   recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
   
+  static int isFirst=1;
   switch(msgID) {
     case MSGID_JOIN_RESPONSE:
       printf("ルームに入室しました\n");
-      printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+      // printf("recvMsgBuffer: %s\n", recvMsgBuffer);
+      // printf("最初のuserID: %d\n", userID);
+      if(isFirst) {
+        isFirst = 0;
+        myID = userID;
+      }
       break;
     case MSGID_CHAT_TEXT:
-      printf("Client %d: %s\n",userID, recvMsgBuffer);
+      if(myID==userID)
+        printf("ME: %s\n", recvMsgBuffer);
+      else
+        // printf("My ID: %d\n", myID);
+        // printf("userID: %d\n", userID);
+        printf("Client %d: %s\n",userID, recvMsgBuffer);
       break;
     default:
       printf("終了します（しません）\n");
