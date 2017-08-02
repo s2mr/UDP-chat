@@ -223,7 +223,7 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
   // printf("msgID: %x\n", msgID);
   // printf("recvPktLen: %d\n", recvPktLen);
   // printf("recvMsgBuffer: %s\n", recvMsgBuffer);
-  printf("recvPktBuffer: %s\n", recvPktBuffer);
+  // printf("recvPktBuffer: %s\n", recvPktBuffer);
   // printf("recvMsgLen: %d\n", recvMsgLen);
 
   recvMsgLen = Depacketize(recvPktBuffer, recvPktLen, &msgID, recvMsgBuffer, msgBufSize);
@@ -256,7 +256,7 @@ int Packetize(short msgID, char *msgBuf, short msgLen, char *pktBuf, int pktBufS
 
 int Depacketize(char *pktBuf, int pktLen, short *msgID, char *msgBuf, short msgBufSize) {
   memcpy(msgID, &pktBuf[0], sizeof(short));
-  memcpy(msgBuf, &pktBuf[5], msgBufSize);
+  memcpy(msgBuf, &pktBuf[6], msgBufSize-sizeof(short));
   
   return strlen(msgBuf);
 }

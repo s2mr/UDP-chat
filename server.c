@@ -198,6 +198,7 @@ void IOSignalHandler(int signo)
 void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, short userID) {
   char sendPktBuf[ECHOMAX];  /* 送信パケットバッファ*/
   char sendMsgBuffer[ECHOMAX];
+  memset(sendMsgBuffer, '\0', ECHOMAX);
   int sendPktLen; /* 送信パケットの長さ */
   int sendMsgLen;				/* 送信メッセージの長さ */
   
