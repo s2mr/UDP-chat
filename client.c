@@ -148,10 +148,16 @@ int SendEchoMessage(int sock, struct sockaddr_in *pServAddr)
     fprintf(stderr,"No input string.\n");
     return -1;
   }
-
-  /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
+  
+  int pktMsgLen;
   char pktBuf[ECHOMAX];
-  int pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, ECHOMAX);
+  if(strcmp(echoString, "/exit\n")==0) {
+    pktMsgLen = Packetize(MSGID_LEAVE_REQUEST, NULL, 0, pktBuf, ECHOMAX);
+  } else {
+    /* エコーサーバへメッセージ(入力された文字列)を送信する．*/
+    pktMsgLen = Packetize(MSGID_CHAT_TEXT, echoString, echoStringLen, pktBuf, ECHOMAX);
+  }
+
   // printf("pktMsgLen : %d\n", pktMsgLen);
   // printf("echoString : %s\n", echoString);
   // printf("pktBuf : %s\n", pktBuf);
@@ -220,7 +226,7 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
   static int isFirst=1;
   switch(msgID) {
     case MSGID_JOIN_RESPONSE:
-      printf("ルームに入室しました\n");
+      printf("Client %d がルームに入室しました\n", userID);
       // printf("recvMsgBuffer: %s\n", recvMsgBuffer);
       // printf("最初のuserID: %d\n", userID);
       if(isFirst) {
@@ -236,8 +242,16 @@ int ReceiveEchoMessage(int sock, struct sockaddr_in *pServAddr)
         // printf("userID: %d\n", userID);
         printf("Client %d: %s\n",userID, recvMsgBuffer);
       break;
+    case MSGID_LEAVE_RESPONSE:
+      if(myID==userID) {
+        printf("終了します。\n");
+        exit(1);
+      } else {
+        printf("Client %d が退出しました。\n", userID);
+      }
+      break;
     default:
-      printf("終了します（しません）\n");
+      printf("管理者にご連絡ください。\n");
       break;
   }
   

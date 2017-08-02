@@ -210,6 +210,9 @@ void sendMsg(short recvMsgID, char *recvMsgBuffer, int recvMsgLen, short userID)
       /* 受信メッセージをそのままクライアントに送信する．*/
       sendPktLen = Packetize(MSGID_CHAT_TEXT, sendMsgBuffer, recvMsgLen+sizeof(short), sendPktBuf, ECHOMAX);
       break;
+    case MSGID_LEAVE_REQUEST:      
+      sendPktLen = Packetize(MSGID_LEAVE_RESPONSE, sendMsgBuffer, sizeof(short), sendPktBuf, ECHOMAX);
+      break;
     default:
       break;  
   }
